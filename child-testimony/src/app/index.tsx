@@ -1,5 +1,6 @@
 import { Text, View, StyleSheet, TextInput } from 'react-native';
 import { useState } from 'react';
+import { responsiveFont } from 'react-native-adaptive-fontsize';
 
 export default function App() {
 
@@ -76,6 +77,8 @@ export default function App() {
 
 }
 
+//////////////////////////////// STYLE SHEET ////////////////////////////////
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -84,20 +87,21 @@ const styles = StyleSheet.create({
   },
   text: {
     color: '#000',
-    fontSize: 40,
-    margin: 12,
+    fontSize: responsiveFont(40),
+    margin: '2%',
   },
   textInput: {
-    padding: 10,
+    padding: '2%',
     borderColor: '#000',
     borderWidth: 1,
-    margin: 12,
+    margin: '5%',
     width: '80%',
     backgroundColor: '#fff',
-    fontSize: 20,
+    fontSize: responsiveFont(16),
+    textAlignVertical: 'top',
   },
   emoji: {
-    fontSize: 80,
-    marginBottom: '10%',
+    fontSize: responsiveFont(64),
+    margin: '2%',
   },
 });
