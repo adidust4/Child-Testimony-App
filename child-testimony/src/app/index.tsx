@@ -1,6 +1,7 @@
-import { Text, View, StyleSheet, TextInput } from 'react-native';
+import { Text, View, StyleSheet, TextInput, Pressable, Keyboard } from 'react-native';
 import { useState } from 'react';
 import { responsiveFont } from 'react-native-adaptive-fontsize';
+
 
 export default function App() {
 
@@ -9,7 +10,7 @@ export default function App() {
   const getStatus = () => {
     if (text.length === 0) {
       return {
-        color: '#87ae73',
+        color: '#9ae474',
         emoji: '😁',
         question: 'Invitation',
       };
@@ -57,21 +58,25 @@ export default function App() {
   const status = getStatus();
 
   return (
-    <View style={[styles.container, { backgroundColor: status.color }]}>
+    <View style={{ flex: 1 }}>
+      <Pressable style={StyleSheet.absoluteFill} onPress={Keyboard.dismiss}>
+        <View style={[styles.container, { backgroundColor: status.color }]}>
 
-      <Text style={styles.emoji}>{status.emoji}</Text>
+            <Text style={styles.emoji}>{status.emoji}</Text>
 
-      <Text style={[styles.text]}>{status.question}</Text>
+            <Text style={[styles.text]}>{status.question}</Text>
 
-      <TextInput style={[styles.textInput]}
-        editable
-        multiline
-        onChangeText={setText}
-        value={text}
-        placeholder='Type your question here...'
-        numberOfLines={2}
-      />
+            <TextInput style={[styles.textInput]}
+              editable
+              multiline
+              onChangeText={setText}
+              value={text}
+              placeholder='Type your question here...'
+              numberOfLines={2}
+            />
 
+        </View>
+      </Pressable>
     </View>
   )
 
