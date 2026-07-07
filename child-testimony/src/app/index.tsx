@@ -1,88 +1,140 @@
-import { Text, View, StyleSheet, TextInput, Pressable, Keyboard } from 'react-native';
-import { useState } from 'react';
-import { responsiveFont } from 'react-native-adaptive-fontsize';
-
+import React, { useState } from 'react';
+import { Text, View, StyleSheet, TextInput, Pressable, Keyboard, Platform,} from 'react-native';
+import API_URL from '../utils/api';
 
 export default function App() {
 
+
+  //////////////////////////// HELPER FUNCTIONS ////////////////////////////
+  
+  
   const [text, setText] = useState('');
+  const [prediction, setPrediction] = useState(null);
+
+
+  const getPrediction = async (question) => {
+    if (question.trim() === "") {
+      setPrediction(null);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/predict`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text: question,
+        }),
+      });
+
+      const data = await response.json();
+      setPrediction(data);
+    } catch (err) {
+      console.log(err);
+    }
+  };
+  
+  
 
   const getStatus = () => {
-    if (text.length === 0) {
-      return {
-        color: '#9ae474',
-        emoji: '😁',
-        question: 'Invitation',
-      };
-    }
-
-    if (text.length < 2) {
-      return {
-        color: '#87ae73',
-        emoji: '🙂',
-        question: 'Wh-'
-      };
-    }
-
-    if (text.length < 3) {
-      return {
-        color: '#e5de00',
-        emoji: '🤔',
-        question: 'Do you know',
-      };
-    }
-
-    if (text.length < 4) {
-      return {
-        color: '#e5de00',
-        emoji: '😑',
-        question: 'Non-question'
-      };
-    }
-
-    if (text.length < 5) {
-      return {
-        color: '#e5de00',
-        emoji: '🙁',
-        question: 'Option-posing'
-      };
-    }
-
+  if (!prediction) {
     return {
-      color: '#ff2400',
-      emoji: '😠',
-      question: 'Tag'
+      color: "#9ae474",
+      emoji: "😁",
+      question: "Type a question",
     };
-  };
+  }
+
+  switch (prediction.raw_label) {
+    case "wh-question / directive":
+      return {
+        color: "#9ae474",
+        emoji: "🙂",
+        question: prediction.raw_label,
+      };
+
+    case "invitation":
+      return {
+        color: "#9ae474",
+        emoji: "😁",
+        question: prediction.raw_label,
+      };
+
+    case "tag":
+      return {
+        color: "#ff2400",
+        emoji: "😠",
+        question: prediction.raw_label,
+      };
+
+      case "option-posing":
+      return {
+        color: "#ff2400",
+        emoji: "😠",
+        question: prediction.raw_label,
+      };
+
+      case "not a question":
+      return {
+        color: "#e5de00",
+        emoji: "😑",
+        question: prediction.raw_label,
+      };
+
+    default:
+      return {
+        color: "#e5de00",
+        emoji: "🤔",
+        question: prediction.raw_label,
+      };
+  }
+};
 
   const status = getStatus();
 
-  return (
-    <View style={{ flex: 1 }}>
-      <Pressable style={StyleSheet.absoluteFill} onPress={Keyboard.dismiss}>
-        <View style={[styles.container, { backgroundColor: status.color }]}>
+  //////////////////////////// VIEW (separated by OS) ////////////////////////////
 
-            <Text style={styles.emoji}>{status.emoji}</Text>
+  const content = (
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: status.color },
+      ]}
+    >
+      <Text style={styles.emoji}>{status.emoji}</Text>
 
-            <Text style={[styles.text]}>{status.question}</Text>
+      <Text style={styles.text}>
+      {prediction ? prediction.raw_label : "Type a question"}
+    </Text>
 
-            <TextInput style={[styles.textInput]}
-              editable
-              multiline
-              onChangeText={setText}
-              value={text}
-              placeholder='Type your question here...'
-              numberOfLines={2}
-            />
-
-        </View>
+      <TextInput
+        style={styles.textInput}
+        editable
+        value={text}
+        onChangeText={setText}
+        placeholder="Type your question here..."
+        onSubmitEditing={() => getPrediction(text)}
+      />
+      <Pressable style={styles.button} onPress={() => getPrediction(text)}>
+        <Text style={styles.buttonText}>Predict Quesiton Type</Text>
       </Pressable>
     </View>
-  )
+  );
 
+  if (Platform.OS === 'web') {
+    return content;
+  }
+
+  return (
+    <Pressable style={{ flex: 1 }} onPress={Keyboard.dismiss}>
+      {content}
+    </Pressable>
+  );
 }
 
-//////////////////////////////// STYLE SHEET ////////////////////////////////
+//////////////////////////// STYLE SHEET ////////////////////////////
 
 const styles = StyleSheet.create({
   container: {
@@ -92,7 +144,7 @@ const styles = StyleSheet.create({
   },
   text: {
     color: '#000',
-    fontSize: responsiveFont(40),
+    fontSize: 40,
     margin: '2%',
   },
   textInput: {
@@ -102,11 +154,22 @@ const styles = StyleSheet.create({
     margin: '5%',
     width: '80%',
     backgroundColor: '#fff',
-    fontSize: responsiveFont(16),
+    fontSize: 16,
     textAlignVertical: 'top',
   },
   emoji: {
-    fontSize: responsiveFont(64),
+    fontSize: 64,
     margin: '2%',
+  },
+  button: {
+    marginTop: 20,
+    backgroundColor: "#fff",
+    borderColor: '#000',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  buttonText: {
+    fontSize: 16,
   },
 });
