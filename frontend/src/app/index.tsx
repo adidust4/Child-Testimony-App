@@ -96,7 +96,7 @@ export default function App() {
 
   //////////////////////////// VIEW (separated by OS) ////////////////////////////
 
-  const content = (
+  return (
     <View
       style={[
         styles.container,
@@ -118,19 +118,9 @@ export default function App() {
         onSubmitEditing={() => getPrediction(text)}
       />
       <Pressable style={styles.button} onPress={() => getPrediction(text)}>
-        <Text style={styles.buttonText}>Predict Quesiton Type</Text>
+        <Text style={styles.buttonText}>Predict Question Type</Text>
       </Pressable>
     </View>
-  );
-
-  if (Platform.OS === 'web') {
-    return content;
-  }
-
-  return (
-    <Pressable style={{ flex: 1 }} onPress={Keyboard.dismiss}>
-      {content}
-    </Pressable>
   );
 }
 
