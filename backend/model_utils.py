@@ -1,10 +1,18 @@
 from pathlib import Path
 import json
 import re
+import os
 
 import pandas as pd
 import torch
 from transformers import RobertaTokenizer
+
+from huggingface_hub import hf_hub_download
+
+
+HF_REPO_ID = "adust4/model"
+
+MODEL_FILENAME = "model.pt"
 
 
 def clean_question(x):
@@ -36,8 +44,17 @@ def clean_question(x):
     return x
 
 BASE_DIR = Path(__file__).resolve().parent
-MODEL_PATH = BASE_DIR / "previous" / "model"
 LABEL_MAPPING_PATH = BASE_DIR / "previous" / "label_mapping.json"
+
+def download_model():
+
+    token = os.getenv("HF_TOKEN")
+
+    return hf_hub_download(
+        repo_id=HF_REPO_ID,
+        filename=MODEL_FILENAME,
+        token=token,
+    )
 
 def load_label_mapping():
     with open(LABEL_MAPPING_PATH, "r", encoding="utf-8") as f:
@@ -46,7 +63,7 @@ def load_label_mapping():
 
 def load_model():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+    MODEL_PATH = download_model()
     model = torch.load(MODEL_PATH, map_location=device, weights_only=False)
     tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
 
