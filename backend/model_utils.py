@@ -12,7 +12,7 @@ from huggingface_hub import hf_hub_download
 
 HF_REPO_ID = "adust4/model"
 
-MODEL_FILENAME = "model.pt"
+MODEL_FILENAME = "model"
 
 
 def clean_question(x):
