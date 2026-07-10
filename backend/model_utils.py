@@ -64,10 +64,15 @@ def load_label_mapping():
 def load_model():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     MODEL_PATH = download_model()
-    model = torch.load(MODEL_PATH, map_location=device, weights_only=False)
-    tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
 
-    model = torch.load(MODEL_PATH, map_location=device, weights_only=False)
+    model = torch.load(
+        MODEL_PATH,
+        map_location=device,
+        weights_only=False
+    )
+
+    tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
+
     model.to(device)
     model.eval()
 
