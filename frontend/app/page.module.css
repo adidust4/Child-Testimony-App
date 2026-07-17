@@ -1,0 +1,50 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background-color 0.2s ease;
+  padding: 24px;
+}
+
+.card {
+  width: 100%;
+  max-width: 520px;
+  background: rgba(255,255,255,0.85);
+  border: 1px solid black;
+  border-radius: 20px;
+  padding: 30px;
+  text-align: center;
+}
+
+.emoji {
+  font-size: 72px;
+  margin-bottom: 16px;
+}
+
+.title {
+  font-size: 2rem;
+  margin-bottom: 20px;
+}
+
+.input {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid black;
+  border-radius: 10px;
+  font-size: 16px;
+  margin-bottom: 16px;
+}
+
+.button {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid black;
+  border-radius: 10px;
+  background: white;
+  cursor: pointer;
+}
+
+.button:hover {
+  background: #f2f2f2;
+}
