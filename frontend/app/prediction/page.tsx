@@ -3,6 +3,22 @@
 import { useMemo, useState, useEffect } from "react";
 import styles from "../page.module.css";
 import { useSearchParams } from "next/navigation";
+import { initializeApp } from "firebase/app";
+import { collection, addDoc, getFirestore } from "firebase/firestore"; 
+
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAIXWf0aObW_SFs32e8n6_Mn59PK9ZsBls",
+  authDomain: "child-testimony.firebaseapp.com",
+  projectId: "child-testimony",
+  storageBucket: "child-testimony.firebasestorage.app",
+  messagingSenderId: "980904584345",
+  appId: "1:980904584345:web:c76323f02b08d2412b0408",
+  measurementId: "G-DFVSN43M9J"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 
 type Prediction = {
@@ -12,7 +28,6 @@ type Prediction = {
 export default function Page() {
   const searchParams = useSearchParams();
   const name = searchParams.get("text") ?? "";
-  console.log(name)
   const [text, setText] = useState("");
   const [prediction, setPrediction] = useState<Prediction | null>(null);
   const [loading, setLoading] = useState(false);
@@ -49,6 +64,18 @@ export default function Page() {
         color: "#9ae474",
         emoji: "😁",
       };
+    
+    try {
+      const docRef = addDoc (collection(db, "Responses"), {
+        answer_final: false,
+        current_answer: text,
+        id: name,
+        prediction_shown: true,
+        scenario: 0
+      });
+    } catch (e) {
+      console.error("Error adding document: ", e);
+    }
 
     switch (prediction.raw_label) {
       case "wh-question / directive":
@@ -69,35 +96,46 @@ export default function Page() {
     }
   }, [prediction]);
 
-  return (
-    <main
-      className={styles.page}
-      style={{ backgroundColor: status.color }}
-    >
-      <div className={styles.card}>
-        <div className={styles.emoji}>{status.emoji}</div>
+return (
+  <main
+    className={styles.page}
+    style={{ backgroundColor: status.color }}
+  >
+    <div className={styles.card}>
+      <div className={styles.emoji}>{status.emoji}</div>
 
-        <h1 className={styles.title}>
-          {prediction ? prediction.raw_label : "Type a question"}
-        </h1>
+      <h1 className={styles.title}>
+        {prediction ? prediction.raw_label : "Type a question"}
+      </h1>
 
-        <input
-          className={styles.input}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Type your question here..."
-          onKeyDown={(e) => {
-            if (e.key === "Enter") getPrediction(text);
-          }}
-        />
-
-        <button
-          className={styles.button}
-          onClick={() => getPrediction(text)}
-        >
-          {loading ? "Predicting..." : "Predict Question Type"}
-        </button>
+      <div className={styles.selectRow}>
+        <span>Scenario Number:</span>
+        <select className={styles.select}>
+          {[...Array(44)].map((_, i) => i + 1).map((i) => (
+            <option key={i} value={i}>
+              {i}
+            </option>
+          ))}
+        </select>
       </div>
-    </main>
-  );
+
+      <input
+        className={styles.input}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Type your question here..."
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || "Space") getPrediction(text);
+        }}
+      />
+
+      <button
+        className={styles.button}
+        onClick={() => getPrediction(text)}
+      >
+        {loading ? "Predicting..." : "Predict Question Type"}
+      </button>
+    </div>
+  </main>
+);
 }
