@@ -32,8 +32,8 @@ jobs:
 
       - name: Build Expo web
         run: npx expo export --platform web
-        env:
-          EXPO_PUBLIC_API_URL: https://child-testimony-app.onrender.com
+        # env:
+        #   EXPO_PUBLIC_API_URL: 
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

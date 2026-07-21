@@ -1,0 +1,38 @@
+{
+  "0": {
+    "raw_label": "not a question",
+    "display_label": "NON-QUESTION",
+    "color_name": "neutral_gray",
+    "hex_color_suggestion": "#9E9E9E"
+  },
+  "1": {
+    "raw_label": "option-posing",
+    "display_label": "OPTION-POSING",
+    "color_name": "orange",
+    "hex_color_suggestion": "#F57C00"
+  },
+  "2": {
+    "raw_label": "wh-question / directive",
+    "display_label": "WH / DIRECTIVE",
+    "color_name": "light_green",
+    "hex_color_suggestion": "#7CB342"
+  },
+  "3": {
+    "raw_label": "invitation",
+    "display_label": "INVITATION",
+    "color_name": "bright_green",
+    "hex_color_suggestion": "#00C853"
+  },
+  "4": {
+    "raw_label": "tag",
+    "display_label": "TAG / SUGGESTIVE",
+    "color_name": "dark_red",
+    "hex_color_suggestion": "#B71C1C"
+  },
+  "5": {
+    "raw_label": "do you know / remember",
+    "display_label": "DO YOU KNOW / REMEMBER",
+    "color_name": "amber",
+    "hex_color_suggestion": "#FFC107"
+  }
+}

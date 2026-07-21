@@ -1,98 +1,63 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import styles from "./page.module.css";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
-type Prediction = {
-  raw_label: string;
-};
-
-export default function Page() {
+export default function Home() {
   const [text, setText] = useState("");
-  const [prediction, setPrediction] = useState<Prediction | null>(null);
-  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
-  const getPrediction = async (question: string) => {
-    if (!question.trim()) {
-      setPrediction(null);
+  const handleClick = () => {
+    if (!text.trim()) {
+      alert("Please enter your assigned ID.");
       return;
     }
 
-    setLoading(true);
-
-    try {
-      const response = await fetch(`${API_URL}/predict`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ text: question }),
-      });
-
-      const data = await response.json();
-      setPrediction(data);
-    } finally {
-      setLoading(false);
-    }
+    router.push(`/prediction?text=${encodeURIComponent(text)}`);
   };
-
-  const status = useMemo(() => {
-    if (!prediction)
-      return {
-        color: "#9ae474",
-        emoji: "😁",
-      };
-
-    switch (prediction.raw_label) {
-      case "wh-question / directive":
-        return { color: "#9ae474", emoji: "🙂" };
-
-      case "invitation":
-        return { color: "#9ae474", emoji: "😁" };
-
-      case "tag":
-      case "option-posing":
-        return { color: "#ff2400", emoji: "😠" };
-
-      case "not a question":
-        return { color: "#e5de00", emoji: "😑" };
-
-      default:
-        return { color: "#e5de00", emoji: "🤔" };
-    }
-  }, [prediction]);
 
   return (
     <main
-      className={styles.page}
-      style={{ backgroundColor: status.color }}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "100vh",
+        gap: "20px",
+      }}
     >
-      <div className={styles.card}>
-        <div className={styles.emoji}>{status.emoji}</div>
+      <h1>Child Interviewing</h1>
+      <p>Welcome! Please enter your ID below.</p>
 
-        <h1 className={styles.title}>
-          {prediction ? prediction.raw_label : "Type a question"}
-        </h1>
+      <input
+        type="text"
+        placeholder="Type your ID..."
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        style={{
+          padding: "12px",
+          width: "350px",
+          fontSize: "16px",
+          borderRadius: "8px",
+          border: "1px solid #ccc",
+        }}
+      />
 
-        <input
-          className={styles.input}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Type your question here..."
-          onKeyDown={(e) => {
-            if (e.key === "Enter") getPrediction(text);
-          }}
-        />
-
-        <button
-          className={styles.button}
-          onClick={() => getPrediction(text)}
-        >
-          {loading ? "Predicting..." : "Predict Question Type"}
-        </button>
-      </div>
+      <button
+        onClick={handleClick}
+        style={{
+          padding: "12px 24px",
+          fontSize: "16px",
+          cursor: "pointer",
+          borderRadius: "8px",
+          border: "none",
+          backgroundColor: "#0070f3",
+          color: "white",
+        }}
+      >
+        Start Asking Questions
+      </button>
     </main>
   );
 }
