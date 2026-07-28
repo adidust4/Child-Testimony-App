@@ -1,17 +1,11 @@
 import type { NextConfig } from "next";
 
-const repo = "Child-Testimony-App";
-
 const nextConfig: NextConfig = {
   output: "export",
-
   images: {
     unoptimized: true,
   },
-
-  basePath: `/${repo}`,
-  assetPrefix: `/${repo}/`,
-
+  basePath: "/Child-Testimony-App",
   allowedDevOrigins: ["192.168.1.69"],
 };
 

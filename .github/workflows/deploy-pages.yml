@@ -27,6 +27,9 @@ jobs:
         with:
           node-version: 20
 
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
       - name: Install dependencies
         run: npm ci
 
@@ -38,13 +41,15 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: frontend/out
+          path: ./frontend/out
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
     environment:
       name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy
+      - id: deployment
+        name: Deploy
         uses: actions/deploy-pages@v4
