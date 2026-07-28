@@ -36,7 +36,7 @@ export default function Page() {
   const [scenario, setScenario] = useState(1);
   const [needsNewScenario, setNeedsNewScenario] = useState(false);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000";
 
   const logToFirebase = async (
     question: string,

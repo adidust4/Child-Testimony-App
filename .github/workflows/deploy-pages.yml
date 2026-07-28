@@ -33,7 +33,7 @@ jobs:
       - name: Build Expo web
         run: npx expo export --platform web
         env:
-          NEXT_PUBLIC_API_URL: https://child-testimony-app.fastapicloud.dev
+          EXPO_PUBLIC_API_URL: https://child-testimony-app.fastapicloud.dev
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
