@@ -102,7 +102,7 @@ LABEL_MAPPING_PATH = BASE_DIR / "label_mapping.json"
 
 def download_model():
 
-    token = "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"
+    token = os.getenv("HF_TOKEN")
 
     return hf_hub_download(
         repo_id=HF_REPO_ID,
