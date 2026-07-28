@@ -4,10 +4,8 @@ from pydantic import BaseModel
 
 from model_utils import (
     predict_turn,
-    model,
-    tokenizer,
-    device,
-    label_mapping,
+    get_model_bundle,
+    load_label_mapping,
 )
 
 app = FastAPI()
@@ -26,17 +24,31 @@ app.add_middleware(
 
 class Question(BaseModel):
     text: str
-    is_final: bool
+    is_final: bool = False
+
+
+@app.get("/")
+def root():
+    return {"status": "ok"}
+
+
+@app.get("/health")
+def health():
+    return {"status": "healthy"}
+
 
 @app.post("/predict")
 def predict(question: Question):
+    model, tokenizer, device = get_model_bundle()
+    label_mapping = load_label_mapping()
+
     result = predict_turn(
         question.text,
         model,
         tokenizer,
         device,
         label_mapping,
-        is_final= question.is_final
+        is_final=question.is_final,
     )
 
     return result
