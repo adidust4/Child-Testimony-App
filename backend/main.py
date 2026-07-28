@@ -15,8 +15,8 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",
         "https://adidust4.github.io",
+        "http://localhost:3000",
     ],
     allow_credentials=True,
     allow_methods=["*"],
