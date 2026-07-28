@@ -10,6 +10,7 @@ dependencies = [
     "charset-normalizer==3.4.8",
     "click==8.4.2",
     "colorama==0.4.6",
+    "en-core-web-sm",
     "fastapi[standard]==0.139.0",
     "filelock==3.29.6",
     "fsspec==2026.6.0",
@@ -47,3 +48,6 @@ dependencies = [
     "urllib3==2.7.0",
     "uvicorn==0.50.2",
 ]
+
+[tool.uv.sources]
+en-core-web-sm = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" }
