@@ -26,7 +26,7 @@ app.add_middleware(
 
 class Question(BaseModel):
     text: str
-
+    is_final: bool
 
 @app.post("/predict")
 def predict(question: Question):
@@ -36,6 +36,7 @@ def predict(question: Question):
         tokenizer,
         device,
         label_mapping,
+        is_final= question.is_final
     )
 
     return result
