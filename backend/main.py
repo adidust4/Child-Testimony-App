@@ -1,12 +1,9 @@
+# main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from model_utils import (
-    predict_turn,
-    get_model_bundle,
-    load_label_mapping,
-)
+from model_utils import predict_turn, get_model_bundle, load_label_mapping
 
 app = FastAPI()
 
@@ -42,7 +39,7 @@ def predict(question: Question):
     model, tokenizer, device = get_model_bundle()
     label_mapping = load_label_mapping()
 
-    result = predict_turn(
+    return predict_turn(
         question.text,
         model,
         tokenizer,
@@ -50,5 +47,3 @@ def predict(question: Question):
         label_mapping,
         is_final=question.is_final,
     )
-
-    return result

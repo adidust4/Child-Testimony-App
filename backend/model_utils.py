@@ -1,16 +1,17 @@
+# model_utils.py
 from pathlib import Path
 import json
-import re
 import os
+import re
 import unicodedata
 from functools import lru_cache
 from threading import Lock
 
-import spacy
 import pandas as pd
+import spacy
 import torch
-from transformers import RobertaTokenizer
 from huggingface_hub import hf_hub_download
+from transformers import RobertaTokenizer
 
 HF_REPO_ID = "adust4/model"
 MODEL_FILENAME = "model"
@@ -18,7 +19,7 @@ MODEL_FILENAME = "model"
 BASE_DIR = Path(__file__).resolve().parent
 LABEL_MAPPING_PATH = BASE_DIR / "label_mapping.json"
 
-_model_lock = Lock()
+_lock = Lock()
 _nlp = None
 _model = None
 _tokenizer = None
@@ -52,27 +53,6 @@ def clean_question(x):
         x = x.strip()
 
     x = x.replace('"', "")
-
-    filler_pattern = (
-        r"\b(?:"
-        r"uh+|um+|hm+|mm+|"
-        r"oh+|"
-        r"ok+|okay+|mk|"
-        r"yeah+|yea+h*|yep+|"
-        r"so+|"
-        r"huh+"
-        r")\b"
-    )
-
-    x = re.sub(filler_pattern, " ", x, flags=re.IGNORECASE)
-    x = re.sub(r"\ball\s+right\b", " ", x, flags=re.IGNORECASE)
-    x = re.sub(r"\bthat'?s\s+right\b", " ", x, flags=re.IGNORECASE)
-    x = re.sub(
-        r"^[\s,.:;!?—–-]*(?:and\b[\s,.:;!?—–-]*)+",
-        "",
-        x,
-        flags=re.IGNORECASE,
-    )
     x = re.sub(r"\s+", " ", x).strip()
     return x
 
@@ -99,7 +79,7 @@ def load_label_mapping():
 def get_nlp():
     global _nlp
     if _nlp is None:
-        with _model_lock:
+        with _lock:
             if _nlp is None:
                 _nlp = spacy.load("en_core_web_sm")
     return _nlp
@@ -108,7 +88,7 @@ def get_nlp():
 def get_model_bundle():
     global _model, _tokenizer, _device
     if _model is None or _tokenizer is None or _device is None:
-        with _model_lock:
+        with _lock:
             if _model is None or _tokenizer is None or _device is None:
                 _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
                 model_path = download_model()
@@ -118,7 +98,6 @@ def get_model_bundle():
                     map_location=_device,
                     weights_only=False,
                 )
-
                 _tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
                 _model.to(_device)
                 _model.eval()
@@ -133,37 +112,27 @@ def is_option_posing(s):
 
     if len(tokens) < 2:
         return False
-    elif len(tokens) == 2:
-        if normalized_s == "will you":
+    if len(tokens) == 2:
+        if normalized_s in {"will you", "have you", "is there", "no did"}:
             return True
-        elif normalized_s == "have you":
+        if tokens[0] == "do" and doc[1].pos_ == "PRON":
             return True
-        elif normalized_s == "is there":
-            return True
-        elif normalized_s == "no did":
-            return True
-        elif tokens[0] == "do" and doc[1].pos_ == "PRON":
-            return True
-        else:
-            return False
-    elif len(tokens) == 3:
+        return False
+    if len(tokens) == 3:
         if tokens[0] == "do" and doc[1].pos_ == "PRON" and doc[2].pos_ == "VERB" and tokens[2] not in ["know", "remember"]:
             return True
-        elif tokens[0] == "you" and tokens[1] == "said" and tokens[2] == "you":
+        if tokens[0] == "you" and tokens[1] == "said" and tokens[2] == "you":
             return True
-        else:
-            return False
-    elif len(tokens) == 4:
+        return False
+    if len(tokens) == 4:
         if tokens[0] == "can" and tokens[1] == "you" and tokens[2] == "put" and tokens[3] == "it":
             return True
-        elif tokens[0] == "are" and tokens[1] == "you" and tokens[2] == "going" and tokens[3] == "to":
+        if tokens[0] == "are" and tokens[1] == "you" and tokens[2] == "going" and tokens[3] == "to":
             return True
-        elif tokens[0] == "if" and tokens[1] == "someone" and tokens[2] == "says" and tokens[3] == "this":
+        if tokens[0] == "if" and tokens[1] == "someone" and tokens[2] == "says" and tokens[3] == "this":
             return True
-        else:
-            return False
-    else:
         return False
+    return False
 
 
 def predict_turn(turn_text, model, tokenizer, device, label_mapping, is_final=False):
@@ -175,14 +144,12 @@ def predict_turn(turn_text, model, tokenizer, device, label_mapping, is_final=Fa
             max_length=512,
             return_tensors="pt",
         )
-
         input_ids = encoded["input_ids"].to(device)
         attention_mask = encoded["attention_mask"].to(device)
 
         with torch.no_grad():
             outputs = model(input_ids, attention_mask=attention_mask)
             logits = outputs.logits if hasattr(outputs, "logits") else outputs[0]
-
             probabilities = torch.softmax(logits, dim=1)[0]
             predicted_id = int(torch.argmax(probabilities).item())
             confidence = float(probabilities[predicted_id].item())
@@ -194,9 +161,7 @@ def predict_turn(turn_text, model, tokenizer, device, label_mapping, is_final=Fa
         }
 
     cleaned_text = clean_question(turn_text)
-    is_option = is_option_posing(cleaned_text)
-
-    if is_option:
+    if is_option_posing(cleaned_text):
         return {
             "raw_model_label": 1,
             "raw_label": label_mapping[1]["raw_label"],
@@ -216,7 +181,6 @@ def predict_turn(turn_text, model, tokenizer, device, label_mapping, is_final=Fa
     with torch.no_grad():
         outputs = model(input_ids, attention_mask=attention_mask)
         logits = outputs.logits if hasattr(outputs, "logits") else outputs[0]
-
         probabilities = torch.softmax(logits, dim=1)[0]
         predicted_id = int(torch.argmax(probabilities).item())
         confidence = float(probabilities[predicted_id].item())
@@ -226,7 +190,3 @@ def predict_turn(turn_text, model, tokenizer, device, label_mapping, is_final=Fa
         "raw_label": label_mapping[predicted_id]["raw_label"],
         "confidence": confidence,
     }
-
-
-def split_words(sentence):
-    return re.findall(r"\S+", str(sentence))
