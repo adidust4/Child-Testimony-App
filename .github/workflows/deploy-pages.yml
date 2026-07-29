@@ -36,7 +36,7 @@ jobs:
       - name: Build Next.js site
         run: npm run build
         env:
-          NEXT_PUBLIC_API_URL: https://child-testimony-app.fastapicloud.dev
+          NEXT_PUBLIC_API_URL: https://child-testimony-app-git-163552495933.us-central1.run.app
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
