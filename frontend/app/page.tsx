@@ -1,11 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function Home() {
   const [text, setText] = useState("");
   const router = useRouter();
+
+  const API_URL =
+    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
+  // Warm up the backend and load the model in the background
+  useEffect(() => {
+    fetch(`${API_URL}/warmup`).catch((err) =>
+      console.error("Warmup failed:", err)
+    );
+  }, [API_URL]);
 
   const handleClick = () => {
     if (!text.trim()) {

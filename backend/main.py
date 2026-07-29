@@ -1,6 +1,3 @@
-# main.py
-from contextlib import asynccontextmanager
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -9,17 +6,9 @@ from model_utils import (
     predict_turn,
     get_model_bundle,
     load_label_mapping,
-    preload_resources,
 )
 
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    preload_resources()
-    yield
-
-
-app = FastAPI(lifespan=lifespan)
+app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
@@ -46,6 +35,18 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "healthy"}
+
+
+@app.get("/warmup")
+def warmup():
+    """
+    Load the model, tokenizer, spaCy model, and label mapping.
+    Subsequent calls return immediately because everything is cached.
+    """
+    get_model_bundle()
+    load_label_mapping()
+
+    return {"status": "ready"}
 
 
 @app.post("/predict")
