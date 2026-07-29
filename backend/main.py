@@ -1,11 +1,25 @@
 # main.py
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from model_utils import predict_turn, get_model_bundle, load_label_mapping
+from model_utils import (
+    predict_turn,
+    get_model_bundle,
+    load_label_mapping,
+    preload_resources,
+)
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    preload_resources()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
