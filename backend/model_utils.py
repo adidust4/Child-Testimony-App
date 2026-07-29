@@ -25,6 +25,10 @@ _model = None
 _tokenizer = None
 _device = None
 
+def preload_resources():
+    get_nlp()
+    get_model_bundle()
+    load_label_mapping()
 
 def clean_question(x):
     if pd.isna(x):
@@ -41,6 +45,28 @@ def clean_question(x):
     x = re.sub(r"\b[Qq]\b\s*:?", "", x)
     x = re.sub(r"\*+", "", x)
     x = re.sub(r"\([^)]*\)", "", x)
+
+    # Remove common discourse markers / fillers
+    filler_pattern = (
+        r"\b(?:"
+        r"uh+|um+|hm+|mm+|"
+        r"oh+|"
+        r"ok+|okay+|mk|"
+        r"yeah+|yea+h*|yep+|"
+        r"so+|"
+        r"huh+"
+        r")\b"
+    )
+
+    x = re.sub(filler_pattern, " ", x, flags=re.IGNORECASE)
+    x = re.sub(r"\ball\s+right\b", " ", x, flags=re.IGNORECASE)
+    x = re.sub(r"\bthat'?s\s+right\b", " ", x, flags=re.IGNORECASE)
+    x = re.sub(
+        r"^[\s,.:;!?—–-]*(?:and\b[\s,.:;!?—–-]*)+",
+        "",
+        x,
+        flags=re.IGNORECASE
+    )
 
     old = None
     while old != x:
