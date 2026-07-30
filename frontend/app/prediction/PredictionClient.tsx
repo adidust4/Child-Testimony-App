@@ -143,15 +143,6 @@ export default function PredictionClient() {
           <strong>{scenario}</strong>
         </div>
 
-        <button
-          className={styles.button}
-          onClick={handleNextScenario}
-          disabled={!needsNewScenario || scenario >= 44}
-          style={{ marginBottom: "12px" }}
-        >
-          {scenario >= 44 ? "All Scenarios Complete" : "Next Scenario"}
-        </button>
-
         <input
           className={styles.input}
           value={text}
@@ -184,6 +175,15 @@ export default function PredictionClient() {
             : needsNewScenario
               ? "Please move to the next scenario"
               : "Predict Question Type"}
+        </button>
+
+        <button
+          className={styles.button}
+          onClick={handleNextScenario}
+          disabled={!needsNewScenario || scenario >= 44}
+          style={{ marginBottom: "12px" }}
+        >
+          {scenario >= 44 ? "All Scenarios Complete" : "Next Scenario"}
         </button>
       </div>
     </main>
