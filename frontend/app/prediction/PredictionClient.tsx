@@ -3,21 +3,9 @@
 import { useMemo, useState } from "react";
 import styles from "../page.module.css";
 import { useSearchParams } from "next/navigation";
-import { initializeApp } from "firebase/app";
-import { collection, addDoc, getFirestore } from "firebase/firestore";
+import { collection, addDoc } from "firebase/firestore";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAIXWf0aObW_SFs32e8n6_Mn59PK9ZsBls",
-  authDomain: "child-testimony.firebaseapp.com",
-  projectId: "child-testimony",
-  storageBucket: "child-testimony.firebasestorage.app",
-  messagingSenderId: "980904584345",
-  appId: "1:980904584345:web:c76323f02b08d2412b0408",
-  measurementId: "G-DFVSN43M9J",
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+import { db } from "../../lib/firebase";
 
 type Prediction = {
   raw_label: string;
@@ -42,7 +30,8 @@ export default function PredictionClient() {
     question: string,
     predictionData: Prediction,
     isFinal: boolean,
-    predictionShown: boolean
+    predictionShown: boolean,
+    trigger: "space" | "enter/button"
   ) => {
     try {
       await addDoc(collection(db, "Responses"), {
@@ -52,7 +41,7 @@ export default function PredictionClient() {
         id: name,
         prediction_label: predictionData.raw_label,
         scenario,
-        trigger: isFinal ? "enter/button" : "space",
+        trigger,
         timestamp: new Date().toISOString(),
       });
     } catch (e) {
@@ -60,7 +49,11 @@ export default function PredictionClient() {
     }
   };
 
-  const getPrediction = async (question: string, isFinal: boolean) => {
+  const getPrediction = async (
+    question: string,
+    isFinal: boolean,
+    trigger: "space" | "enter/button"
+  ) => {
     if (!question.trim()) {
       setPrediction(null);
       setShowPrediction(false);
@@ -87,7 +80,7 @@ export default function PredictionClient() {
       const shouldShow = isFinal || data.raw_label === "option-posing";
       setShowPrediction(shouldShow);
 
-      await logToFirebase(question, data, isFinal, shouldShow);
+      await logToFirebase(question, data, isFinal, shouldShow, trigger);
 
       if (isFinal) {
         setNeedsNewScenario(true);
@@ -99,15 +92,14 @@ export default function PredictionClient() {
     }
   };
 
-  const handleScenarioChange = (value: number) => {
-    setScenario(value);
+  const handleNextScenario = () => {
+    if (!needsNewScenario || scenario >= 44) return;
 
-    if (needsNewScenario) {
-      setText("");
-      setPrediction(null);
-      setShowPrediction(false);
-      setNeedsNewScenario(false);
-    }
+    setScenario((prev) => prev + 1);
+    setText("");
+    setPrediction(null);
+    setShowPrediction(false);
+    setNeedsNewScenario(false);
   };
 
   const status = useMemo(() => {
@@ -148,18 +140,17 @@ export default function PredictionClient() {
 
         <div className={styles.selectRow}>
           <span>Scenario Number:</span>
-          <select
-            className={styles.select}
-            value={scenario}
-            onChange={(e) => handleScenarioChange(Number(e.target.value))}
-          >
-            {[...Array(44)].map((_, i) => i + 1).map((i) => (
-              <option key={i} value={i}>
-                {i}
-              </option>
-            ))}
-          </select>
+          <strong>{scenario}</strong>
         </div>
+
+        <button
+          className={styles.button}
+          onClick={handleNextScenario}
+          disabled={!needsNewScenario || scenario >= 44}
+          style={{ marginBottom: "12px" }}
+        >
+          {scenario >= 44 ? "All Scenarios Complete" : "Next Scenario"}
+        </button>
 
         <input
           className={styles.input}
@@ -171,9 +162,10 @@ export default function PredictionClient() {
             if (needsNewScenario) return;
 
             if (e.key === "Enter") {
-              getPrediction(text, true);
+              e.preventDefault();
+              getPrediction(text, true, "enter/button");
             } else if (e.code === "Space") {
-              getPrediction(text, false);
+              getPrediction(text, false, "space");
             }
           }}
         />
@@ -182,7 +174,7 @@ export default function PredictionClient() {
           className={styles.button}
           onClick={() => {
             if (!needsNewScenario) {
-              getPrediction(text, true);
+              getPrediction(text, true, "enter/button");
             }
           }}
           disabled={needsNewScenario || loading}
@@ -190,7 +182,7 @@ export default function PredictionClient() {
           {loading
             ? "Predicting..."
             : needsNewScenario
-              ? "Please select a new scenario"
+              ? "Please move to the next scenario"
               : "Predict Question Type"}
         </button>
       </div>
