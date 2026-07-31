@@ -135,27 +135,48 @@ def is_option_posing(s):
     normalized_s = s.lower().strip()
     doc = get_nlp()(normalized_s)
     tokens = normalized_s.split(" ")
+    unigrams = ["did", "is", "does", "are", "had", "has", "have", "was", "will", "anybody"]
+    bigrams = ["no did", "anything else", "no is", "no are", "no have", "any other", "were there", "now is"]
+    trigrams = [""]
+    quadrigrams = ["can you put it", "if someone says this"]
 
-    if len(tokens) < 2:
+    if len(tokens) < 1:
+        return False
+    if len(tokens) == 1:
+        if normalized_s in unigrams:
+            return True
         return False
     if len(tokens) == 2:
-        if normalized_s in {"will you", "have you", "is there", "no did"}:
+        if normalized_s in bigrams:
             return True
-        if tokens[0] == "do" and doc[1].pos_ == "PRON":
-            return True
+        #if tokens[0] == "do" and doc[1].pos_ == "PRON":
+        #    return True
         return False
     if len(tokens) == 3:
         if tokens[0] == "do" and doc[1].pos_ == "PRON" and doc[2].pos_ == "VERB" and tokens[2] not in ["know", "remember"]:
             return True
-        if tokens[0] == "you" and tokens[1] == "said" and tokens[2] == "you":
+        # if tokens[0] == "you" and tokens[1] == "said" and tokens[2] == "you":
+        #     return True
+        return False
+    if len(tokens) == 4:
+        if normalized_s in quadrigrams:
+            return True
+        return False
+    return False
+
+def is_do_you_remember(s):
+    normalized_s = s.lower().strip()
+    tokens = normalized_s.split(" ")
+    trigrams = ["do you know", "do you remember"]
+    quadrigrams = ["no do you know", "no do you remember"]
+    if len(tokens) < 3:
+        return False
+    if len(tokens) == 3:
+        if normalized_s in trigrams:
             return True
         return False
     if len(tokens) == 4:
-        if tokens[0] == "can" and tokens[1] == "you" and tokens[2] == "put" and tokens[3] == "it":
-            return True
-        if tokens[0] == "are" and tokens[1] == "you" and tokens[2] == "going" and tokens[3] == "to":
-            return True
-        if tokens[0] == "if" and tokens[1] == "someone" and tokens[2] == "says" and tokens[3] == "this":
+        if normalized_s in quadrigrams:
             return True
         return False
     return False
@@ -193,6 +214,13 @@ def predict_turn(turn_text, model, tokenizer, device, label_mapping, is_final=Fa
             "raw_label": label_mapping[1]["raw_label"],
             "confidence": 1,
         }
+
+    if is_do_you_remember(cleaned_text):
+            return {
+                "raw_model_label": 5,
+                "raw_label": label_mapping[5]["raw_label"],
+                "confidence": 1,
+            }
 
     encoded = tokenizer(
         turn_text,
