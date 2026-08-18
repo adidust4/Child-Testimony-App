@@ -302,16 +302,6 @@ def is_option_posing(s):
 
 
 def is_do_you_remember(s):
-    """
-    KEEPING YOUR ORIGINAL RULES.
-
-    Matches exactly:
-        do you know
-        do you remember
-        no do you know
-        no do you remember
-    """
-
     normalized_s = s.lower().strip()
 
     tokens = normalized_s.split(" ")
@@ -353,12 +343,9 @@ def predict_turn(
     is_final=False,
     space_count=0,
 ):
-    # --------------------------------------------------
+
     # FINAL ANSWER
-    # --------------------------------------------------
-    #
-    # When Enter/button is pressed, use the model
-    # normally, exactly as before.
+
     #
     if is_final:
         encoded = tokenizer(
@@ -419,17 +406,14 @@ def predict_turn(
             "space_count": space_count,
         }
 
-    # --------------------------------------------------
+
     # NON-FINAL / WHILE TYPING
-    # --------------------------------------------------
 
     cleaned_text = clean_question(
         turn_text
     )
 
-    # --------------------------------------------------
-    # YOUR EXISTING OPTION-POSING RULE
-    # --------------------------------------------------
+    # OPTION-POSING RULE
     if is_option_posing(
         cleaned_text
     ):
@@ -443,9 +427,7 @@ def predict_turn(
             "space_count": space_count,
         }
 
-    # --------------------------------------------------
-    # YOUR EXISTING DO YOU KNOW / REMEMBER RULE
-    # --------------------------------------------------
+    # DO YOU KNOW / REMEMBER RULE
     if is_do_you_remember(
         cleaned_text
     ):
@@ -459,9 +441,7 @@ def predict_turn(
             "space_count": space_count,
         }
 
-    # --------------------------------------------------
     # NORMAL MODEL PREDICTION
-    # --------------------------------------------------
 
     encoded = tokenizer(
         turn_text,
