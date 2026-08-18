@@ -18,22 +18,25 @@ export default function PredictionClient() {
   const name = searchParams.get("text") ?? "";
 
   const [text, setText] = useState("");
-  const [prediction, setPrediction] = useState<Prediction | null>(null);
+  const [prediction, setPrediction] =
+    useState<Prediction | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showPrediction, setShowPrediction] = useState(false);
+  const [showPrediction, setShowPrediction] =
+    useState(false);
   const [scenario, setScenario] = useState(1);
-  const [needsNewScenario, setNeedsNewScenario] = useState(false);
+  const [needsNewScenario, setNeedsNewScenario] =
+    useState(false);
 
   const API_URL =
-    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+    process.env.NEXT_PUBLIC_API_URL ??
+    "http://localhost:8000";
 
   const logToFirebase = async (
     question: string,
     predictionData: Prediction,
     isFinal: boolean,
     predictionShown: boolean,
-    trigger: "space" | "enter/button",
-    spaceCount: number
+    trigger: "space" | "enter/button"
   ) => {
     try {
       await addDoc(collection(db, "Responses"), {
@@ -42,13 +45,15 @@ export default function PredictionClient() {
         current_answer: question,
         id: name,
         prediction_label: predictionData.raw_label,
-        space_count: spaceCount,
         scenario,
         trigger,
         timestamp: new Date().toISOString(),
       });
     } catch (e) {
-      console.error("Error adding document: ", e);
+      console.error(
+        "Error adding document: ",
+        e
+      );
     }
   };
 
@@ -66,76 +71,95 @@ export default function PredictionClient() {
     setLoading(true);
 
     try {
-      // Includes the space that was just pressed
-      const spaceCount = (question.match(/ /g) || []).length;
+      // Count spaces in the exact text being sent.
+      const spaceCount =
+        (question.match(/ /g) || []).length;
 
-      const response = await fetch(`${API_URL}/predict`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          text: question,
-          is_final: isFinal,
-          space_count: spaceCount,
-        }),
-      });
-
-      const responseText = await response.text();
+      const response = await fetch(
+        `${API_URL}/predict`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            text: question,
+            is_final: isFinal,
+            space_count: spaceCount,
+          }),
+        }
+      );
 
       if (!response.ok) {
         throw new Error(
-          `Backend returned ${response.status}: ${responseText}`
+          `Prediction request failed: ${response.status}`
         );
       }
 
-      const data: Prediction = JSON.parse(responseText);
+      const data: Prediction =
+        await response.json();
 
       setPrediction(data);
 
       /*
-       * Show feedback:
+       * Show prediction:
        *
-       * 1. Always show final predictions.
-       *
-       * 2. While typing, after 5 words / 4 spaces,
-       *    show feedback if the prediction is:
-       *       - tag
-       *       - not a question
+       * - always for final answers
+       * - option-posing as before
+       * - do you know / remember as before
+       * - after 4 spaces, show tag/not a question
        */
       const shouldShow =
         isFinal ||
-        (spaceCount >= 4 &&
-          (data.raw_label === "tag" ||
-            data.raw_label === "not a question"));
+        data.raw_label === "option-posing" ||
+        data.raw_label ===
+          "do you know / remember" ||
+        (
+          spaceCount >= 4 &&
+          (
+            data.raw_label === "tag" ||
+            data.raw_label ===
+              "not a question"
+          )
+        );
 
-      setShowPrediction(shouldShow);
+      setShowPrediction(
+        shouldShow
+      );
 
       await logToFirebase(
         question,
         data,
         isFinal,
         shouldShow,
-        trigger,
-        spaceCount
+        trigger
       );
 
       if (isFinal) {
         setNeedsNewScenario(true);
       }
     } catch (e) {
-      console.error("Prediction error:", e);
-      setPrediction(null);
-      setShowPrediction(false);
+      console.error(
+        "Prediction error:",
+        e
+      );
     } finally {
       setLoading(false);
     }
   };
 
   const handleNextScenario = () => {
-    if (!needsNewScenario || scenario >= 44) return;
+    if (
+      !needsNewScenario ||
+      scenario >= 44
+    ) {
+      return;
+    }
 
-    setScenario((prev) => prev + 1);
+    setScenario(
+      (prev) => prev + 1
+    );
+
     setText("");
     setPrediction(null);
     setShowPrediction(false);
@@ -143,7 +167,10 @@ export default function PredictionClient() {
   };
 
   const status = useMemo(() => {
-    if (!prediction || !showPrediction) {
+    if (
+      !prediction ||
+      !showPrediction
+    ) {
       return {
         color: "#ffffff",
         emoji: "",
@@ -151,16 +178,21 @@ export default function PredictionClient() {
       };
     }
 
+    const spaceCount =
+      (text.match(/ /g) || []).length;
+
     /*
-     * While the user is still typing:
-     *
-     * TAG or NOT A QUESTION
-     * = yellow warning screen
+     * After 4 spaces, tag/not a question
+     * gets the yellow warning.
      */
     if (
       !needsNewScenario &&
-      (prediction.raw_label === "tag" ||
-        prediction.raw_label === "not a question")
+      spaceCount >= 4 &&
+      (
+        prediction.raw_label === "tag" ||
+        prediction.raw_label ===
+          "not a question"
+      )
     ) {
       return {
         color: "#fff176",
@@ -170,52 +202,71 @@ export default function PredictionClient() {
       };
     }
 
-    /*
-     * Final prediction after Enter/button
-     */
-    switch (prediction.raw_label) {
+    switch (
+      prediction.raw_label
+    ) {
       case "wh-question / directive":
         return {
           color: "#9ae474",
           emoji: "🙂",
-          message: prediction.raw_label,
+          message:
+            prediction.raw_label,
         };
 
       case "invitation":
         return {
           color: "#9ae474",
           emoji: "😁",
-          message: prediction.raw_label,
+          message:
+            prediction.raw_label,
         };
 
       case "tag":
+        return {
+          color: "#ff2400",
+          emoji: "😠",
+          message:
+            prediction.raw_label,
+        };
+
       case "option-posing":
         return {
           color: "#ff2400",
           emoji: "😠",
-          message: prediction.raw_label,
+          message:
+            prediction.raw_label,
         };
 
       case "not a question":
         return {
           color: "#e5de00",
           emoji: "😑",
-          message: prediction.raw_label,
+          message:
+            prediction.raw_label,
         };
 
       default:
         return {
           color: "#e5de00",
           emoji: "🤔",
-          message: prediction.raw_label,
+          message:
+            prediction.raw_label,
         };
     }
-  }, [prediction, showPrediction, needsNewScenario]);
+  }, [
+    prediction,
+    showPrediction,
+    text,
+    needsNewScenario,
+  ]);
 
   return (
     <main
       className={styles.page}
-      style={{ backgroundColor: status.color }}
+      style={{
+        backgroundColor:
+          status.color,
+      }}
     >
       <div className={styles.card}>
         {status.emoji && (
@@ -229,18 +280,27 @@ export default function PredictionClient() {
         </h1>
 
         <div className={styles.selectRow}>
-          <span>Scenario Number:</span>
-          <strong>{scenario}</strong>
+          <span>
+            Scenario Number:
+          </span>
+
+          <strong>
+            {scenario}
+          </strong>
         </div>
 
         <input
           className={styles.input}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            setText(e.target.value);
+          }}
           placeholder="Type your question here..."
           disabled={needsNewScenario}
           onKeyDown={(e) => {
-            if (needsNewScenario) return;
+            if (needsNewScenario) {
+              return;
+            }
 
             if (e.key === "Enter") {
               e.preventDefault();
@@ -254,19 +314,18 @@ export default function PredictionClient() {
               e.preventDefault();
 
               /*
-               * onKeyDown happens before the browser
-               * adds the newly pressed space.
-               *
-               * Add it manually so space_count
-               * includes the new space.
+               * onKeyDown happens before the
+               * browser adds the space.
                */
-              const questionWithNewSpace =
+              const questionWithSpace =
                 e.currentTarget.value + " ";
 
-              setText(questionWithNewSpace);
+              setText(
+                questionWithSpace
+              );
 
               getPrediction(
-                questionWithNewSpace,
+                questionWithSpace,
                 false,
                 "space"
               );
@@ -285,7 +344,10 @@ export default function PredictionClient() {
               );
             }
           }}
-          disabled={needsNewScenario || loading}
+          disabled={
+            needsNewScenario ||
+            loading
+          }
         >
           {loading
             ? "Predicting..."
@@ -296,11 +358,16 @@ export default function PredictionClient() {
 
         <button
           className={styles.button}
-          onClick={handleNextScenario}
-          disabled={
-            !needsNewScenario || scenario >= 44
+          onClick={
+            handleNextScenario
           }
-          style={{ marginBottom: "12px" }}
+          disabled={
+            !needsNewScenario ||
+            scenario >= 44
+          }
+          style={{
+            marginBottom: "12px",
+          }}
         >
           {scenario >= 44
             ? "All Scenarios Complete"

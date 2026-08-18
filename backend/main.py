@@ -48,12 +48,10 @@ def warmup():
 
 @app.post("/predict")
 def predict(question: Question):
-    print(
-        f"Prediction request: "
-        f"text={question.text!r}, "
-        f"is_final={question.is_final}, "
-        f"space_count={question.space_count}"
-    )
+    print("=== PREDICTION REQUEST ===")
+    print("text:", repr(question.text))
+    print("is_final:", question.is_final)
+    print("space_count:", question.space_count)
 
     model, tokenizer, device = get_model_bundle()
     label_mapping = load_label_mapping()
@@ -68,6 +66,6 @@ def predict(question: Question):
         space_count=question.space_count,
     )
 
-    print(f"Prediction result: {result}")
+    print("Prediction result:", result)
 
     return result
