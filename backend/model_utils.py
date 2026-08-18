@@ -13,6 +13,10 @@ import torch
 from huggingface_hub import hf_hub_download
 from transformers import RobertaTokenizer
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 HF_REPO_ID = "adust4/model"
 MODEL_FILENAME = "model"
 
@@ -182,7 +186,7 @@ def is_do_you_remember(s):
     return False
 
 
-def predict_turn(turn_text, model, tokenizer, device, label_mapping, is_final=False):
+def predict_turn(turn_text, model, tokenizer, device, label_mapping, is_final=False, space_count=0):
     if is_final:
         encoded = tokenizer(
             turn_text,

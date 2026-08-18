@@ -24,14 +24,16 @@ export default function PredictionClient() {
   const [scenario, setScenario] = useState(1);
   const [needsNewScenario, setNeedsNewScenario] = useState(false);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  const API_URL =
+    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
   const logToFirebase = async (
     question: string,
     predictionData: Prediction,
     isFinal: boolean,
     predictionShown: boolean,
-    trigger: "space" | "enter/button"
+    trigger: "space" | "enter/button",
+    spaceCount: number
   ) => {
     try {
       await addDoc(collection(db, "Responses"), {
@@ -40,6 +42,7 @@ export default function PredictionClient() {
         current_answer: question,
         id: name,
         prediction_label: predictionData.raw_label,
+        space_count: spaceCount,
         scenario,
         trigger,
         timestamp: new Date().toISOString(),
@@ -63,6 +66,9 @@ export default function PredictionClient() {
     setLoading(true);
 
     try {
+      // Includes the space that was just pressed
+      const spaceCount = (question.match(/ /g) || []).length;
+
       const response = await fetch(`${API_URL}/predict`, {
         method: "POST",
         headers: {
@@ -71,22 +77,56 @@ export default function PredictionClient() {
         body: JSON.stringify({
           text: question,
           is_final: isFinal,
+          space_count: spaceCount,
         }),
       });
 
-      const data: Prediction = await response.json();
+      const responseText = await response.text();
+
+      if (!response.ok) {
+        throw new Error(
+          `Backend returned ${response.status}: ${responseText}`
+        );
+      }
+
+      const data: Prediction = JSON.parse(responseText);
+
       setPrediction(data);
 
-      const shouldShow = isFinal || data.raw_label === "option-posing";
+      /*
+       * Show feedback:
+       *
+       * 1. Always show final predictions.
+       *
+       * 2. While typing, after 5 words / 4 spaces,
+       *    show feedback if the prediction is:
+       *       - tag
+       *       - not a question
+       */
+      const shouldShow =
+        isFinal ||
+        (spaceCount >= 4 &&
+          (data.raw_label === "tag" ||
+            data.raw_label === "not a question"));
+
       setShowPrediction(shouldShow);
 
-      await logToFirebase(question, data, isFinal, shouldShow, trigger);
+      await logToFirebase(
+        question,
+        data,
+        isFinal,
+        shouldShow,
+        trigger,
+        spaceCount
+      );
 
       if (isFinal) {
         setNeedsNewScenario(true);
       }
     } catch (e) {
       console.error("Prediction error:", e);
+      setPrediction(null);
+      setShowPrediction(false);
     } finally {
       setLoading(false);
     }
@@ -107,35 +147,85 @@ export default function PredictionClient() {
       return {
         color: "#ffffff",
         emoji: "",
+        message: "Type a question",
       };
     }
 
+    /*
+     * While the user is still typing:
+     *
+     * TAG or NOT A QUESTION
+     * = yellow warning screen
+     */
+    if (
+      !needsNewScenario &&
+      (prediction.raw_label === "tag" ||
+        prediction.raw_label === "not a question")
+    ) {
+      return {
+        color: "#fff176",
+        emoji: "⚠️",
+        message:
+          "Watch out! Looks like a close-ended question!",
+      };
+    }
+
+    /*
+     * Final prediction after Enter/button
+     */
     switch (prediction.raw_label) {
       case "wh-question / directive":
-        return { color: "#9ae474", emoji: "🙂" };
+        return {
+          color: "#9ae474",
+          emoji: "🙂",
+          message: prediction.raw_label,
+        };
 
       case "invitation":
-        return { color: "#9ae474", emoji: "😁" };
+        return {
+          color: "#9ae474",
+          emoji: "😁",
+          message: prediction.raw_label,
+        };
 
       case "tag":
       case "option-posing":
-        return { color: "#ff2400", emoji: "😠" };
+        return {
+          color: "#ff2400",
+          emoji: "😠",
+          message: prediction.raw_label,
+        };
 
       case "not a question":
-        return { color: "#e5de00", emoji: "😑" };
+        return {
+          color: "#e5de00",
+          emoji: "😑",
+          message: prediction.raw_label,
+        };
 
       default:
-        return { color: "#e5de00", emoji: "🤔" };
+        return {
+          color: "#e5de00",
+          emoji: "🤔",
+          message: prediction.raw_label,
+        };
     }
-  }, [prediction, showPrediction]);
+  }, [prediction, showPrediction, needsNewScenario]);
 
   return (
-    <main className={styles.page} style={{ backgroundColor: status.color }}>
+    <main
+      className={styles.page}
+      style={{ backgroundColor: status.color }}
+    >
       <div className={styles.card}>
-        {status.emoji && <div className={styles.emoji}>{status.emoji}</div>}
+        {status.emoji && (
+          <div className={styles.emoji}>
+            {status.emoji}
+          </div>
+        )}
 
         <h1 className={styles.title}>
-          {showPrediction && prediction ? prediction.raw_label : "Type a question"}
+          {status.message}
         </h1>
 
         <div className={styles.selectRow}>
@@ -154,9 +244,32 @@ export default function PredictionClient() {
 
             if (e.key === "Enter") {
               e.preventDefault();
-              getPrediction(text, true, "enter/button");
+
+              getPrediction(
+                e.currentTarget.value,
+                true,
+                "enter/button"
+              );
             } else if (e.code === "Space") {
-              getPrediction(text, false, "space");
+              e.preventDefault();
+
+              /*
+               * onKeyDown happens before the browser
+               * adds the newly pressed space.
+               *
+               * Add it manually so space_count
+               * includes the new space.
+               */
+              const questionWithNewSpace =
+                e.currentTarget.value + " ";
+
+              setText(questionWithNewSpace);
+
+              getPrediction(
+                questionWithNewSpace,
+                false,
+                "space"
+              );
             }
           }}
         />
@@ -165,7 +278,11 @@ export default function PredictionClient() {
           className={styles.button}
           onClick={() => {
             if (!needsNewScenario) {
-              getPrediction(text, true, "enter/button");
+              getPrediction(
+                text,
+                true,
+                "enter/button"
+              );
             }
           }}
           disabled={needsNewScenario || loading}
@@ -180,10 +297,14 @@ export default function PredictionClient() {
         <button
           className={styles.button}
           onClick={handleNextScenario}
-          disabled={!needsNewScenario || scenario >= 44}
+          disabled={
+            !needsNewScenario || scenario >= 44
+          }
           style={{ marginBottom: "12px" }}
         >
-          {scenario >= 44 ? "All Scenarios Complete" : "Next Scenario"}
+          {scenario >= 44
+            ? "All Scenarios Complete"
+            : "Next Scenario"}
         </button>
       </div>
     </main>

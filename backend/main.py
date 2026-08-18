@@ -25,6 +25,7 @@ app.add_middleware(
 class Question(BaseModel):
     text: str
     is_final: bool = False
+    space_count: int = 0
 
 
 @app.get("/")
@@ -39,10 +40,6 @@ def health():
 
 @app.get("/warmup")
 def warmup():
-    """
-    Load the model, tokenizer, spaCy model, and label mapping.
-    Subsequent calls return immediately because everything is cached.
-    """
     get_model_bundle()
     load_label_mapping()
 
@@ -51,14 +48,26 @@ def warmup():
 
 @app.post("/predict")
 def predict(question: Question):
+    print(
+        f"Prediction request: "
+        f"text={question.text!r}, "
+        f"is_final={question.is_final}, "
+        f"space_count={question.space_count}"
+    )
+
     model, tokenizer, device = get_model_bundle()
     label_mapping = load_label_mapping()
 
-    return predict_turn(
+    result = predict_turn(
         question.text,
         model,
         tokenizer,
         device,
         label_mapping,
         is_final=question.is_final,
+        space_count=question.space_count,
     )
+
+    print(f"Prediction result: {result}")
+
+    return result
