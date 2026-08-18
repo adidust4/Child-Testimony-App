@@ -17,4 +17,6 @@ cd backend
 uvicon main:app
 ```
 
+if `uvicorn` part doesn't work, use `python -m uvicorn main:app --reload`
+
 open http://localhost:3000 on your browser
