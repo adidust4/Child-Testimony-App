@@ -19,4 +19,4 @@ uvicon main:app
 
 if `uvicorn` part doesn't work, use `python -m uvicorn main:app --reload`
 
-open http://localhost:3000 on your browser
+open http://localhost:3000/Child-Testimony-App on your browser
