@@ -256,7 +256,7 @@ def is_option_posing(s):
         "now is",
     ]
 
-    trigrams = [""]
+    trigrams = ["tell me if"]
 
     quadrigrams = [
         "can you put it",
@@ -279,7 +279,9 @@ def is_option_posing(s):
         return False
 
     if len(tokens) == 3:
-        if (
+        if normalized_s in trigrams:
+            return True
+        elif (
             tokens[0] == "do"
             and doc[1].pos_ == "PRON"
             and doc[2].pos_ == "VERB"
@@ -290,7 +292,8 @@ def is_option_posing(s):
         ):
             return True
 
-        return False
+        else: 
+            return False
 
     if len(tokens) == 4:
         if normalized_s in quadrigrams:
@@ -343,7 +346,6 @@ def predict_turn(
     is_final=False,
     space_count=0,
 ):
-
     # FINAL ANSWER
 
     #
