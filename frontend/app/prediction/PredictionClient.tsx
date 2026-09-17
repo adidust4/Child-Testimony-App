@@ -1,10 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import styles from "../page.module.css";
+import {
+  type ChangeEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useSearchParams } from "next/navigation";
-import { collection, addDoc } from "firebase/firestore";
+import { addDoc, collection } from "firebase/firestore";
 
+import styles from "../page.module.css";
 import { db } from "../../lib/firebase";
 
 type Prediction = {
@@ -12,6 +17,14 @@ type Prediction = {
   confidence?: number;
   raw_model_label?: number;
 };
+
+type PredictionTrigger =
+  | "space"
+  | "space-deleted"
+  | "enter/button";
+
+const countSpaces = (value: string) =>
+  (value.match(/ /g) || []).length;
 
 export default function PredictionClient() {
   const searchParams = useSearchParams();
@@ -27,6 +40,8 @@ export default function PredictionClient() {
   const [needsNewScenario, setNeedsNewScenario] =
     useState(false);
 
+  const predictionRequestId = useRef(0);
+
   const API_URL =
     process.env.NEXT_PUBLIC_API_URL ??
     "http://localhost:8000";
@@ -36,7 +51,7 @@ export default function PredictionClient() {
     predictionData: Prediction,
     isFinal: boolean,
     predictionShown: boolean,
-    trigger: "space" | "enter/button"
+    trigger: PredictionTrigger
   ) => {
     try {
       await addDoc(collection(db, "Responses"), {
@@ -49,46 +64,41 @@ export default function PredictionClient() {
         trigger,
         timestamp: new Date().toISOString(),
       });
-    } catch (e) {
-      console.error(
-        "Error adding document: ",
-        e
-      );
+    } catch (error) {
+      console.error("Error adding document:", error);
     }
   };
 
   const getPrediction = async (
     question: string,
     isFinal: boolean,
-    trigger: "space" | "enter/button"
+    trigger: PredictionTrigger
   ) => {
+    const requestId = ++predictionRequestId.current;
+
     if (!question.trim()) {
       setPrediction(null);
       setShowPrediction(false);
+      setLoading(false);
       return;
     }
 
     setLoading(true);
 
     try {
-      // Count spaces in the exact text being sent.
-      const spaceCount =
-        (question.match(/ /g) || []).length;
+      const spaceCount = countSpaces(question);
 
-      const response = await fetch(
-        `${API_URL}/predict`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            text: question,
-            is_final: isFinal,
-            space_count: spaceCount,
-          }),
-        }
-      );
+      const response = await fetch(`${API_URL}/predict`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text: question,
+          is_final: isFinal,
+          space_count: spaceCount,
+        }),
+      });
 
       if (!response.ok) {
         throw new Error(
@@ -96,36 +106,22 @@ export default function PredictionClient() {
         );
       }
 
-      const data: Prediction =
-        await response.json();
+      const data: Prediction = await response.json();
 
-      setPrediction(data);
+      if (requestId !== predictionRequestId.current) {
+        return;
+      }
 
-      /*
-       * Show prediction:
-       *
-       * - always for final answers
-       * - option-posing as before
-       * - do you know / remember as before
-       * - after 4 spaces, show tag/not a question
-       */
       const shouldShow =
         isFinal ||
         data.raw_label === "option-posing" ||
-        data.raw_label ===
-          "do you know / remember" ||
-        (
-          spaceCount >= 4 &&
-          (
-            data.raw_label === "tag" ||
-            data.raw_label ===
-              "not a question"
-          )
-        );
+        data.raw_label === "do you know / remember" ||
+        (spaceCount >= 4 &&
+          (data.raw_label === "tag" ||
+            data.raw_label === "not a question"));
 
-      setShowPrediction(
-        shouldShow
-      );
+      setPrediction(data);
+      setShowPrediction(shouldShow);
 
       await logToFirebase(
         question,
@@ -135,42 +131,61 @@ export default function PredictionClient() {
         trigger
       );
 
-      if (isFinal) {
+      if (
+        isFinal &&
+        requestId === predictionRequestId.current
+      ) {
         setNeedsNewScenario(true);
       }
-    } catch (e) {
-      console.error(
-        "Prediction error:",
-        e
-      );
+    } catch (error) {
+      if (requestId === predictionRequestId.current) {
+        console.error("Prediction error:", error);
+      }
     } finally {
-      setLoading(false);
+      if (requestId === predictionRequestId.current) {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleTextChange = (
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
+    const newText = event.target.value;
+
+    const previousSpaceCount = countSpaces(text);
+    const newSpaceCount = countSpaces(newText);
+    const spaceWasDeleted =
+      newSpaceCount < previousSpaceCount;
+
+    setText(newText);
+
+    if (spaceWasDeleted) {
+      getPrediction(
+        newText,
+        false,
+        "space-deleted"
+      );
     }
   };
 
   const handleNextScenario = () => {
-    if (
-      !needsNewScenario ||
-      scenario >= 44
-    ) {
+    if (!needsNewScenario || scenario >= 44) {
       return;
     }
 
-    setScenario(
-      (prev) => prev + 1
-    );
+    predictionRequestId.current += 1;
 
+    setScenario((currentScenario) => currentScenario + 1);
     setText("");
     setPrediction(null);
     setShowPrediction(false);
+    setLoading(false);
     setNeedsNewScenario(false);
   };
 
   const status = useMemo(() => {
-    if (
-      !prediction ||
-      !showPrediction
-    ) {
+    if (!prediction || !showPrediction) {
       return {
         color: "#ffffff",
         emoji: "",
@@ -178,21 +193,13 @@ export default function PredictionClient() {
       };
     }
 
-    const spaceCount =
-      (text.match(/ /g) || []).length;
+    const spaceCount = countSpaces(text);
 
-    /*
-     * After 4 spaces, tag/not a question
-     * gets the yellow warning.
-     */
     if (
       !needsNewScenario &&
       spaceCount >= 4 &&
-      (
-        prediction.raw_label === "tag" ||
-        prediction.raw_label ===
-          "not a question"
-      )
+      (prediction.raw_label === "tag" ||
+        prediction.raw_label === "not a question")
     ) {
       return {
         color: "#fff176",
@@ -202,55 +209,47 @@ export default function PredictionClient() {
       };
     }
 
-    switch (
-      prediction.raw_label
-    ) {
+    switch (prediction.raw_label) {
       case "wh-question / directive":
         return {
           color: "#9ae474",
           emoji: "🙂",
-          message:
-            prediction.raw_label,
+          message: prediction.raw_label,
         };
 
       case "invitation":
         return {
           color: "#9ae474",
           emoji: "😁",
-          message:
-            prediction.raw_label,
+          message: prediction.raw_label,
         };
 
       case "tag":
         return {
           color: "#ff2400",
           emoji: "😠",
-          message:
-            prediction.raw_label,
+          message: prediction.raw_label,
         };
 
       case "option-posing":
         return {
           color: "#ff2400",
           emoji: "😠",
-          message:
-            prediction.raw_label,
+          message: prediction.raw_label,
         };
 
       case "not a question":
         return {
           color: "#e5de00",
           emoji: "😑",
-          message:
-            prediction.raw_label,
+          message: prediction.raw_label,
         };
 
       default:
         return {
           color: "#e5de00",
           emoji: "🤔",
-          message:
-            prediction.raw_label,
+          message: prediction.raw_label,
         };
     }
   }, [
@@ -263,10 +262,7 @@ export default function PredictionClient() {
   return (
     <main
       className={styles.page}
-      style={{
-        backgroundColor:
-          status.color,
-      }}
+      style={{ backgroundColor: status.color }}
     >
       <div className={styles.card}>
         {status.emoji && (
@@ -280,56 +276,44 @@ export default function PredictionClient() {
         </h1>
 
         <div className={styles.selectRow}>
-          <span>
-            Scenario Number:
-          </span>
-
-          <strong>
-            {scenario}
-          </strong>
+          <span>Scenario Number:</span>
+          <strong>{scenario}</strong>
         </div>
 
         <input
           className={styles.input}
           value={text}
-          onChange={(e) => {
-            setText(e.target.value);
-          }}
+          onChange={handleTextChange}
           placeholder="Type your question here..."
           disabled={needsNewScenario}
-          onKeyDown={(e) => {
+          onKeyDown={(event) => {
             if (needsNewScenario) {
               return;
             }
 
-            if (e.key === "Enter") {
-              e.preventDefault();
+            if (event.key === "Enter") {
+              event.preventDefault();
 
               getPrediction(
-                e.currentTarget.value,
+                event.currentTarget.value,
                 true,
                 "enter/button"
               );
-            } else if (e.code === "Space") {
-              e.preventDefault();
-
-              /*
-               * onKeyDown happens before the
-               * browser adds the space.
-               */
-              const questionWithSpace =
-                e.currentTarget.value + " ";
-
-              setText(
-                questionWithSpace
-              );
-
-              getPrediction(
-                questionWithSpace,
-                false,
-                "space"
-              );
             }
+          }}
+          onKeyUp={(event) => {
+            if (
+              needsNewScenario ||
+              event.code !== "Space"
+            ) {
+              return;
+            }
+
+            getPrediction(
+              event.currentTarget.value,
+              false,
+              "space"
+            );
           }}
         />
 
@@ -344,10 +328,7 @@ export default function PredictionClient() {
               );
             }
           }}
-          disabled={
-            needsNewScenario ||
-            loading
-          }
+          disabled={needsNewScenario || loading}
         >
           {loading
             ? "Predicting..."
@@ -358,16 +339,11 @@ export default function PredictionClient() {
 
         <button
           className={styles.button}
-          onClick={
-            handleNextScenario
-          }
+          onClick={handleNextScenario}
           disabled={
-            !needsNewScenario ||
-            scenario >= 44
+            !needsNewScenario || scenario >= 44
           }
-          style={{
-            marginBottom: "12px",
-          }}
+          style={{ marginBottom: "12px" }}
         >
           {scenario >= 44
             ? "All Scenarios Complete"
