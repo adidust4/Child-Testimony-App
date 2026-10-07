@@ -16,6 +16,7 @@ type Prediction = {
   raw_label: string;
   confidence?: number;
   raw_model_label?: number;
+  rule?: string;
 };
 
 type PredictionTrigger =
@@ -114,11 +115,9 @@ export default function PredictionClient() {
 
       const shouldShow =
         isFinal ||
-        data.raw_label === "option-posing" ||
-        data.raw_label === "do you know / remember" ||
-        (spaceCount >= 4 &&
-          (data.raw_label === "tag" ||
-            data.raw_label === "not a question"));
+        (data.raw_label === "option-posing" && data.rule !== null) ||
+        (data.raw_label === "do you know / remember" && data.rule !== null) ||
+        spaceCount >= 4 ;
 
       setPrediction(data);
       setShowPrediction(shouldShow);

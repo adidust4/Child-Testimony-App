@@ -49,7 +49,7 @@ def clean_question(x):
     x = re.sub(r'^[^"]*"', "", x)
     x = re.sub(r"\[[^\]]*\]", "", x)
     x = re.sub(r"\b\d+\b", "", x)
-    x = re.sub(r"\b[Qq]\b\s*:?", "", x)
+    # x = re.sub(r"\b[Qq]\b\s*:?", "", x)
     x = re.sub(r"\*+", "", x)
     x = re.sub(r"\([^)]*\)", "", x)
 
@@ -256,11 +256,13 @@ def is_option_posing(s):
         "now is",
     ]
 
-    trigrams = ["tell me if"]
+    trigrams = ["tell me if", "tell me whether"]
 
     quadrigrams = [
         "can you put it",
         "if someone says this",
+        "do you know whether",
+        "do you know if"
     ]
 
     if len(tokens) < 1:
@@ -275,48 +277,40 @@ def is_option_posing(s):
     if len(tokens) == 2:
         if normalized_s in bigrams:
             return True
-
-        return False
+        else:
+            return False
 
     if len(tokens) == 3:
         if normalized_s in trigrams:
             return True
-        elif (
-            tokens[0] == "do"
-            and doc[1].pos_ == "PRON"
-            and doc[2].pos_ == "VERB"
-            and tokens[2] not in [
-                "know",
-                "remember",
-            ]
-        ):
-            return True
-
-        else: 
+        else:
             return False
+
 
     if len(tokens) == 4:
         if normalized_s in quadrigrams:
             return True
-
-        return False
+        else:
+            return False
 
     return False
-
+    
 
 def is_do_you_remember(s):
     normalized_s = s.lower().strip()
 
     tokens = normalized_s.split(" ")
+    doc = get_nlp()(normalized_s)
 
     trigrams = [
         "do you know",
-        "do you remember",
+        "do you remember"
     ]
 
     quadrigrams = [
         "no do you know",
         "no do you remember",
+        "do you know whether"
     ]
 
     if len(tokens) < 3:
@@ -325,8 +319,14 @@ def is_do_you_remember(s):
     if len(tokens) == 3:
         if normalized_s in trigrams:
             return True
-
-        return False
+        elif (
+            tokens[0] == "do"
+            and tokens[1] == "you"
+            and doc[2].pos_ == "VERB"
+        ):
+            return True
+        else:
+            return False
 
     if len(tokens) == 4:
         if normalized_s in quadrigrams:
@@ -411,9 +411,10 @@ def predict_turn(
 
     # NON-FINAL / WHILE TYPING
 
-    cleaned_text = clean_question(
-        turn_text
-    )
+    # cleaned_text = clean_question(
+    #     turn_text
+    # )
+    cleaned_text = turn_text
 
     # OPTION-POSING RULE
     if is_option_posing(
@@ -425,7 +426,7 @@ def predict_turn(
                 1
             ]["raw_label"],
             "confidence": 1,
-            "rule": "option_posing",
+            "rule": "option-posing",
             "space_count": space_count,
         }
 
