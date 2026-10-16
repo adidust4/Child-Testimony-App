@@ -114,11 +114,12 @@ export default function PredictionClient() {
       }
 
       const shouldShow =
-        isFinal ||
-        (data.raw_label === "option-posing" && data.rule !== null) ||
-        (data.raw_label === "do you know / remember" && data.rule !== null) ||
-        spaceCount >= 4 ;
-
+        data.raw_label === "not a question"
+          ? isFinal
+          : isFinal ||
+            (data.raw_label === "option-posing" && data.rule !== null) ||
+            (data.raw_label === "do you know / remember" && data.rule !== null) ||
+            spaceCount >= 4;
       setPrediction(data);
       setShowPrediction(shouldShow);
 
@@ -151,20 +152,15 @@ export default function PredictionClient() {
     event: ChangeEvent<HTMLInputElement>
   ) => {
     const newText = event.target.value;
-
     const previousSpaceCount = countSpaces(text);
     const newSpaceCount = countSpaces(newText);
-    const spaceWasDeleted =
-      newSpaceCount < previousSpaceCount;
-
+  
     setText(newText);
-
-    if (spaceWasDeleted) {
-      getPrediction(
-        newText,
-        false,
-        "space-deleted"
-      );
+  
+    if (newSpaceCount > previousSpaceCount) {
+      getPrediction(newText, false, "space");
+    } else if (newSpaceCount < previousSpaceCount) {
+      getPrediction(newText, false, "space-deleted");
     }
   };
 
@@ -197,14 +193,12 @@ export default function PredictionClient() {
     if (
       !needsNewScenario &&
       spaceCount >= 4 &&
-      (prediction.raw_label === "tag" ||
-        prediction.raw_label === "not a question")
+      (prediction.raw_label === "tag")
     ) {
       return {
-        color: "#fff176",
-        emoji: "⚠️",
-        message:
-          "Watch out! Looks like a close-ended question!",
+        color: "#ffffff",
+        emoji: "",
+        message: "Type a question",
       };
     }
 
@@ -243,12 +237,19 @@ export default function PredictionClient() {
           emoji: "😑",
           message: prediction.raw_label,
         };
+      
+        case "do you know / remember":
+          return {
+            color: "#e5de00",
+            emoji: "😑",
+            message: prediction.raw_label,
+          };
 
       default:
         return {
-          color: "#e5de00",
-          emoji: "🤔",
-          message: prediction.raw_label,
+          color: "#ffffff",
+          emoji: "",
+          message: "Type a question",
         };
     }
   }, [

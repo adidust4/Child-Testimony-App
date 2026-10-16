@@ -129,6 +129,9 @@ switch (prediction.raw_label) {
   case "not a question":
     return { color: "#e5de00", emoji: "😑" };
 
+  case "do you know / remember":
+    return { color: "#e5de00", emoji: "😑" };
+
   default:
     return { color: "#e5de00", emoji: "🤔" };
 }

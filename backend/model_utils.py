@@ -225,114 +225,73 @@ def get_model_bundle():
     )
 
 
+def starts_with_any_phrase(normalized_s, phrases):
+    tokens = normalized_s.split()
+
+    return any(
+        tokens[:len(phrase.split())] == phrase.split()
+        for phrase in phrases
+        if len(tokens) >= len(phrase.split())
+    )
+
+
 def is_option_posing(s):
     normalized_s = s.lower().strip()
 
-    doc = get_nlp()(normalized_s)
-
-    tokens = normalized_s.split(" ")
-
     unigrams = [
-        "did",
-        "is",
-        "does",
-        "are",
-        "had",
-        "has",
-        "have",
-        "was",
-        "will",
-        "anybody",
+        "did", "is", "does", "are", "had", "has",
+        "have", "was", "will", "anybody",
     ]
 
     bigrams = [
-        "no did",
-        "anything else",
-        "no is",
-        "no are",
-        "no have",
-        "any other",
-        "were there",
-        "now is",
+        "no did", "anything else", "no is", "no are",
+        "no have", "any other", "were there", "now is",
     ]
 
-    trigrams = ["tell me if", "tell me whether"]
+    trigrams = [
+        "tell me if",
+        "tell me whether",
+    ]
 
     quadrigrams = [
         "can you put it",
         "if someone says this",
         "do you know whether",
-        "do you know if"
+        "do you know if",
     ]
 
-    if len(tokens) < 1:
-        return False
+    phrases = unigrams + bigrams + trigrams + quadrigrams
 
-    if len(tokens) == 1:
-        if normalized_s in unigrams:
-            return True
+    print(f"LENGTH OF TOKENS: {len(normalized_s.split())}")
 
-        return False
+    return starts_with_any_phrase(normalized_s, phrases)
 
-    if len(tokens) == 2:
-        if normalized_s in bigrams:
-            return True
-        else:
-            return False
-
-    if len(tokens) == 3:
-        if normalized_s in trigrams:
-            return True
-        else:
-            return False
-
-
-    if len(tokens) == 4:
-        if normalized_s in quadrigrams:
-            return True
-        else:
-            return False
-
-    return False
-    
 
 def is_do_you_remember(s):
     normalized_s = s.lower().strip()
-
-    tokens = normalized_s.split(" ")
-    doc = get_nlp()(normalized_s)
+    tokens = normalized_s.split()
 
     trigrams = [
         "do you know",
-        "do you remember"
+        "do you remember",
     ]
 
     quadrigrams = [
         "no do you know",
         "no do you remember",
-        "do you know whether"
+        "do you know whether",
     ]
 
-    if len(tokens) < 3:
-        return False
+    phrases = trigrams + quadrigrams
 
-    if len(tokens) == 3:
-        if normalized_s in trigrams:
-            return True
-        elif (
-            tokens[0] == "do"
-            and tokens[1] == "you"
-            and doc[2].pos_ == "VERB"
-        ):
-            return True
-        else:
-            return False
+    # Match listed phrases at the start, including when more words follow.
+    if starts_with_any_phrase(normalized_s, phrases):
+        return True
 
-    if len(tokens) == 4:
-        if normalized_s in quadrigrams:
-            return True
-
-        return False
+    # Preserve the general "do you + verb" rule.
+    if len(tokens) >= 3 and tokens[0] == "do" and tokens[1] == "you":
+        doc = get_nlp()(normalized_s)
+        return doc[2].pos_ == "VERB"
 
     return False
 
@@ -349,65 +308,6 @@ def predict_turn(
     # FINAL ANSWER
 
     #
-    if is_final:
-        encoded = tokenizer(
-            turn_text,
-            padding=True,
-            truncation=True,
-            max_length=512,
-            return_tensors="pt",
-        )
-
-        input_ids = encoded[
-            "input_ids"
-        ].to(device)
-
-        attention_mask = encoded[
-            "attention_mask"
-        ].to(device)
-
-        with torch.no_grad():
-            outputs = model(
-                input_ids,
-                attention_mask=attention_mask,
-            )
-
-            logits = (
-                outputs.logits
-                if hasattr(
-                    outputs,
-                    "logits",
-                )
-                else outputs[0]
-            )
-
-            probabilities = torch.softmax(
-                logits,
-                dim=1,
-            )[0]
-
-            predicted_id = int(
-                torch.argmax(
-                    probabilities
-                ).item()
-            )
-
-            confidence = float(
-                probabilities[
-                    predicted_id
-                ].item()
-            )
-
-        return {
-            "raw_model_label": predicted_id,
-            "raw_label": label_mapping[
-                predicted_id
-            ]["raw_label"],
-            "confidence": confidence,
-            "rule": None,
-            "space_count": space_count,
-        }
-
 
     # NON-FINAL / WHILE TYPING
 
@@ -417,35 +317,26 @@ def predict_turn(
     cleaned_text = turn_text
 
     # OPTION-POSING RULE
-    if is_option_posing(
-        cleaned_text
-    ):
+    if is_option_posing(cleaned_text):
         return {
             "raw_model_label": 1,
-            "raw_label": label_mapping[
-                1
-            ]["raw_label"],
+            "raw_label": label_mapping[1]["raw_label"],
             "confidence": 1,
             "rule": "option-posing",
             "space_count": space_count,
         }
 
     # DO YOU KNOW / REMEMBER RULE
-    if is_do_you_remember(
-        cleaned_text
-    ):
+    if is_do_you_remember(cleaned_text):
         return {
             "raw_model_label": 5,
-            "raw_label": label_mapping[
-                5
-            ]["raw_label"],
+            "raw_label": label_mapping[5]["raw_label"],
             "confidence": 1,
             "rule": "do_you_remember",
             "space_count": space_count,
         }
 
     # NORMAL MODEL PREDICTION
-
     encoded = tokenizer(
         turn_text,
         padding=True,
@@ -454,13 +345,8 @@ def predict_turn(
         return_tensors="pt",
     )
 
-    input_ids = encoded[
-        "input_ids"
-    ].to(device)
-
-    attention_mask = encoded[
-        "attention_mask"
-    ].to(device)
+    input_ids = encoded["input_ids"].to(device)
+    attention_mask = encoded["attention_mask"].to(device)
 
     with torch.no_grad():
         outputs = model(
@@ -470,10 +356,7 @@ def predict_turn(
 
         logits = (
             outputs.logits
-            if hasattr(
-                outputs,
-                "logits",
-            )
+            if hasattr(outputs, "logits")
             else outputs[0]
         )
 
@@ -483,22 +366,16 @@ def predict_turn(
         )[0]
 
         predicted_id = int(
-            torch.argmax(
-                probabilities
-            ).item()
+            torch.argmax(probabilities).item()
         )
 
         confidence = float(
-            probabilities[
-                predicted_id
-            ].item()
+            probabilities[predicted_id].item()
         )
 
     return {
         "raw_model_label": predicted_id,
-        "raw_label": label_mapping[
-            predicted_id
-        ]["raw_label"],
+        "raw_label": label_mapping[predicted_id]["raw_label"],
         "confidence": confidence,
         "rule": None,
         "space_count": space_count,
