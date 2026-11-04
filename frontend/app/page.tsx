@@ -48,7 +48,7 @@ export default function Home() {
       }}
     >
       <h1>Child Interviewing</h1>
-      <p>Welcome! Please enter your ID below.</p>
+      <p>Welcome! Please enter your email below.</p>
 
       <input
         type="text"
