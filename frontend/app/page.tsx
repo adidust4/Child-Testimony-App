@@ -18,7 +18,7 @@ export default function Home() {
 
   const handleClick = () => {
     if (!text.trim()) {
-      alert("Please enter your assigned ID.");
+      alert("Please enter your email.");
       return;
     }
 
@@ -52,7 +52,7 @@ export default function Home() {
 
       <input
         type="text"
-        placeholder="Type your ID..."
+        placeholder="Type your email..."
         value={text}
         onChange={(e) => setText(e.target.value)}
         style={{
